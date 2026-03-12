@@ -127,6 +127,7 @@ export default function TimerScreen() {
         source={require("../../assets/images/rouka.png")}
         style={styles.visualArea}
         imageStyle={styles.background}
+        
       >
         <View style={styles.overlay} />
         <Image
@@ -161,23 +162,23 @@ export default function TimerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f7eef2" },
   visualArea: { flex: 1, overflow: "hidden", justifyContent: "center", alignItems: "center", position: "relative" },
-  background: { resizeMode: "cover" },
+  background: { resizeMode: "cover",},
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(13, 44, 83, 0.16)" },
   characterImage: { width: "86%", height: 560, marginTop: 36 },
   conversationTouchArea: { position: "absolute", left: 10, right: 10, bottom: 20 },
   timerArea: {
-    height: 340, // エリアの高さを広げる
+    height: 280, // エリアの高さを広げる
     backgroundColor: "#fff6f9", 
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32,
     alignItems: "center", 
-    paddingTop: 32, 
+    paddingTop: 20, 
     paddingBottom: 150, // ボタンを上に持ち上げる（調整可能）
     borderWidth: 2, 
     borderColor: "#f6c7da", 
     borderBottomWidth: 0,
   },
-  timeText: { fontSize: 64, fontWeight: "700", color: "#5a5961", marginBottom: 24, letterSpacing: 2 },
+  timeText: { fontSize: 60, fontWeight: "700", color: "#5a5961", marginBottom: 10, letterSpacing: 2 },
   button: { width: "60%", paddingVertical: 16, borderRadius: 30, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   buttonInactive: { backgroundColor: "#f6c7da" },
   buttonActive: { backgroundColor: "#eb85af" },
