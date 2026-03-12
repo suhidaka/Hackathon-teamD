@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { Image, StyleSheet, Text, View } from "react-native";
+﻿import { router } from "expo-router";
+import { Image, StyleSheet, View } from "react-native";
 import { useEffect } from "react";
 
 const SPLASH_DURATION_MS = 2400;
@@ -20,7 +20,6 @@ export default function SplashRoute() {
         resizeMode="contain"
         style={styles.logo}
       />
-      <Text style={styles.subText}>Campus Kanojo</Text>
     </View>
   );
 }
@@ -31,18 +30,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8eef2",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 0,
   },
   logo: {
-    width: "88%",
-    maxWidth: 360,
-    height: 180,
-  },
-  subText: {
-    marginTop: 10,
-    color: "#7e7481",
-    fontSize: 18,
-    letterSpacing: 1,
+    width: "140%",
+    height: 460,
   },
 });
+
 

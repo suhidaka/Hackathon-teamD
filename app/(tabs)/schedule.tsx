@@ -47,7 +47,7 @@ export default function ScheduleScreen() {
   return (
     <View style={styles.screen}>
       <Image
-        source={require("../../assets/images/character-main.png")}
+        source={require("../../assets/images/character1.png")}
         style={styles.sideCharacter}
         resizeMode="contain"
       />
@@ -95,19 +95,19 @@ const styles = StyleSheet.create({
   },
   sideCharacter: {
     position: "absolute",
-    left: -120,
-    bottom: 40,
+    left: -105,
+    bottom: 60,
     width: 350,
     height: 650,
     opacity: 0.9,
   },
   content: {
-    paddingTop: 84,
+    paddingTop: 180,
     paddingBottom: 110,
     paddingHorizontal: 14,
   },
   cardArea: {
-    marginLeft: 76,
-    gap: 10,
+    marginLeft: 100,
+    gap: 5,
   },
 });

@@ -31,11 +31,11 @@ export function DayTabs({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: "#f7f2f5",
+    backgroundColor: "#f8f4f6",
     borderRadius: 18,
     padding: 4,
     borderWidth: 1,
-    borderColor: "#efdde5",
+    borderColor: "#e6dbe2",
     marginBottom: 6,
   },
   tab: {
@@ -43,18 +43,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
+    paddingVertical: 5,
   },
   selectedTab: {
     backgroundColor: "#f3bfd7",
   },
   label: {
-    color: "#3b3746",
-    fontSize: 38,
+    color: "#5a4e58",
+    fontSize: 18,
     fontWeight: "600",
   },
   selectedLabel: {
-    color: "#3b2f40",
+    color: "#4a2d3d",
   },
 });
 
