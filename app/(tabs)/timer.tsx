@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -44,8 +44,8 @@ export default function TimerScreen() {
   const lastUpdateRef = useRef(Date.now());
   const currentMessageRef = useRef(message);
 
-  // タイマーの状況に合わせてカテゴリーを決定
-  const determineCategory = () => {
+  // 【変更点1】 useCallbackで包む
+  const determineCategory = useCallback(() => {
     if (isActive) {
       const elapsedSeconds = INITIAL_TIME - timeLeft;
       // 15分（900秒）までは開始時、それ以降は途中
@@ -58,10 +58,10 @@ export default function TimerScreen() {
     }
     // スタート前
     return "default";
-  };
+  }, [isActive, timeLeft, finishedTime]); // ← 中で使っている変数を指定
 
-  // セリフを更新する処理
-  const updateMessage = (forceUpdate = false) => {
+  // 【変更点2】 useCallbackで包む
+  const updateMessage = useCallback((forceUpdate = false) => {
     const newCategory = determineCategory();
     
     if (newCategory !== currentCategory || forceUpdate) {
@@ -79,8 +79,9 @@ export default function TimerScreen() {
       currentMessageRef.current = randomMsg;
       lastUpdateRef.current = Date.now();
     }
-  };
+  }, [currentCategory, determineCategory]); // ← 中で使っている変数と関数を指定
 
+  // 【変更点3】 useEffectの配列に updateMessage を追加
   useEffect(() => {
     updateMessage();
 
@@ -102,7 +103,7 @@ export default function TimerScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, finishedTime, currentCategory]);
+  }, [isActive, timeLeft, finishedTime, currentCategory, updateMessage]);
 
   const toggleTimer = () => {
     if (!isActive && timeLeft > 0) {
@@ -127,7 +128,6 @@ export default function TimerScreen() {
         source={require("../../assets/images/rouka.png")}
         style={styles.visualArea}
         imageStyle={styles.background}
-        
       >
         <View style={styles.overlay} />
         <Image
@@ -167,13 +167,13 @@ const styles = StyleSheet.create({
   characterImage: { width: "86%", height: 560, marginTop: 36 },
   conversationTouchArea: { position: "absolute", left: 10, right: 10, bottom: 20 },
   timerArea: {
-    height: 280, // エリアの高さを広げる
+    height: 280, 
     backgroundColor: "#fff6f9", 
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32,
     alignItems: "center", 
     paddingTop: 20, 
-    paddingBottom: 150, // ボタンを上に持ち上げる（調整可能）
+    paddingBottom: 150, 
     borderWidth: 2, 
     borderColor: "#f6c7da", 
     borderBottomWidth: 0,
