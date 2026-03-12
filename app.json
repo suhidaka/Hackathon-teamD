@@ -1,6 +1,6 @@
-{
+﻿{
   "expo": {
-    "name": "キャンパス彼女",
+    "name": "繧ｭ繝｣繝ｳ繝代せ蠖ｼ螂ｳ",
     "slug": "campus-kanojo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,7 +31,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/campus-logo.png",
-          "imageWidth": 200,
+          "imageWidth": 460,
           "resizeMode": "contain",
           "backgroundColor": "#f8eef2",
           "dark": {
@@ -46,3 +46,4 @@
     }
   }
 }
+

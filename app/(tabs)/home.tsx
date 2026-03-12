@@ -1,43 +1,138 @@
 import {
   Image,
   ImageBackground,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSchedule } from "../../src/context/ScheduleContext";
-import { GIRL_MESSAGES } from "../../src/constants/messages";
-import { getNextClass } from "../../src/utils/schedule";
+import { GIRL_MESSAGES, HOME_MESSAGES } from "../../src/constants/messages";
+import type { DayLabel, ScheduleEntry } from "../../src/types/schedule";
+import { getNextClass, parseHHMMToMinutes } from "../../src/utils/schedule";
 import { ConversationBox } from "../../src/components/ConversationBox";
+
+const DAY_LABEL_BY_WEEKDAY: Partial<Record<number, DayLabel>> = {
+  1: "月",
+  2: "火",
+  3: "水",
+  4: "木",
+  5: "金",
+};
+
+function pickRandomMessage(pool: string[], previousMessage?: string) {
+  if (!pool.length) {
+    return "";
+  }
+  if (pool.length === 1) {
+    return pool[0];
+  }
+
+  let selected = pool[Math.floor(Math.random() * pool.length)];
+  if (selected === previousMessage) {
+    const alternatives = pool.filter((item) => item !== previousMessage);
+    selected = alternatives[Math.floor(Math.random() * alternatives.length)];
+  }
+  return selected;
+}
+
+function getTodayClasses(entries: ScheduleEntry[], now: Date) {
+  const today = DAY_LABEL_BY_WEEKDAY[now.getDay()];
+  if (!today) {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => entry.day === today && entry.className.trim())
+    .map((entry) => {
+      const start = parseHHMMToMinutes(entry.startTime);
+      const end = parseHHMMToMinutes(entry.endTime);
+      if (start === null || end === null || end <= start) {
+        return null;
+      }
+      return { start, end };
+    })
+    .filter((entry): entry is { start: number; end: number } => entry !== null)
+    .sort((a, b) => a.start - b.start);
+}
+
+function resolveHomeMessage(
+  entries: ScheduleEntry[],
+  now: Date,
+  previousMessage?: string
+) {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const todayClasses = getTodayClasses(entries, now);
+
+  const soonClass = todayClasses.find((item) => {
+    const diff = item.start - nowMinutes;
+    return diff > 0 && diff <= 5;
+  });
+  if (soonClass) {
+    return pickRandomMessage(HOME_MESSAGES.beforeClass, previousMessage);
+  }
+
+  const endedClasses = todayClasses.filter(
+    (item) => nowMinutes >= item.end && nowMinutes < item.end + 5
+  );
+  if (endedClasses.length > 0) {
+    const latestEnded = endedClasses[endedClasses.length - 1];
+    const hasNextClass = todayClasses.some((item) => item.start > latestEnded.end);
+    return pickRandomMessage(
+      hasNextClass ? HOME_MESSAGES.afterClassWithNext : HOME_MESSAGES.afterClassDone,
+      previousMessage
+    );
+  }
+
+  if (nowMinutes >= 4 * 60 && nowMinutes < 8 * 60) {
+    return pickRandomMessage(HOME_MESSAGES.morning, previousMessage);
+  }
+
+  if (nowMinutes >= 18 * 60 || nowMinutes < 4 * 60) {
+    return pickRandomMessage(HOME_MESSAGES.night, previousMessage);
+  }
+
+  return pickRandomMessage(GIRL_MESSAGES, previousMessage);
+}
 
 export default function HomeScreen() {
   const { entries } = useSchedule();
-
-  const randomMessage = useMemo(() => {
-    const index = Math.floor(Math.random() * GIRL_MESSAGES.length);
-    return GIRL_MESSAGES[index];
-  }, []);
+  const [message, setMessage] = useState(GIRL_MESSAGES[0]);
+  const previousMessageRef = useRef<string | undefined>(undefined);
 
   const nextClass = useMemo(() => getNextClass(entries, new Date()), [entries]);
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.nextClassCard}>
-        <Text style={styles.nextClassText}>
-          {nextClass
-            ? `Next: ${nextClass.className} ${nextClass.startTime}`
-            : "Next: 今日の授業はありません"}
-        </Text>
-      </View>
+  useEffect(() => {
+    const updateMessage = () => {
+      const newMessage = resolveHomeMessage(entries, new Date(), previousMessageRef.current);
+      previousMessageRef.current = newMessage;
+      setMessage(newMessage);
+    };
 
+    updateMessage();
+    const intervalId = setInterval(updateMessage, 30000);
+    return () => clearInterval(intervalId);
+  }, [entries]);
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <StatusBar style="dark" backgroundColor="white" />
+      <View style={styles.container}>
       <ImageBackground
         source={require("../../assets/images/rouka.png")}
         style={styles.visualArea}
         imageStyle={styles.roukaBackground}
       >
         <View style={styles.overlay} />
+        <View style={styles.nextClassCard}>
+          <Text style={styles.nextClassText}>
+            {nextClass
+              ? `Next: ${nextClass.className} ${nextClass.startTime}`
+              : "Next: 今日の授業はありません"}
+          </Text>
+        </View>
         <Image
           source={require("../../assets/images/character-main.png")}
           style={styles.characterImage}
@@ -45,59 +140,65 @@ export default function HomeScreen() {
         />
         <ConversationBox
           name="美月"
-          message={randomMessage}
+          message={message}
           style={styles.conversation}
         />
       </ImageBackground>
-    </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "white",
+  },
   container: {
-    flexGrow: 1,
-    paddingTop: 14,
-    paddingHorizontal: 14,
-    paddingBottom: 110,
+    flex: 1,
     backgroundColor: "#f7eef2",
   },
   nextClassCard: {
+    position: "absolute",
+    top: 6,
+    left: 0,
+    right: 0,
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     backgroundColor: "#f9ebf0",
     borderWidth: 1,
     borderColor: "#f0d8e1",
-    marginBottom: 12,
+    zIndex: 10,
   },
   nextClassText: {
-    fontSize: 24,
+    fontSize: 20,
     color: "#5a5961",
   },
   visualArea: {
-    borderRadius: 16,
     overflow: "hidden",
-    minHeight: 620,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
   },
   roukaBackground: {
     resizeMode: "cover",
+    transform: [{ scaleX: 1.6 }, { scaleY: 1.8 }, { translateX: 70 }],
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(13, 44, 83, 0.16)",
   },
   characterImage: {
-    width: "86%",
-    height: 560,
-    marginTop: 36,
+    width: "190%",
+    height: 940,
+    marginTop: 260,
   },
   conversation: {
     position: "absolute",
     left: 10,
     right: 10,
-    bottom: 20,
+    bottom: 180,
   },
 });
