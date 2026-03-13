@@ -12,7 +12,7 @@ const periods = [1, 2, 3, 4, 5, 6];
 
 export default function ScheduleScreen() {
   const { entries, updateEntry } = useSchedule();
-  const [selectedDay, setSelectedDay] = useState<DayLabel>("月");
+  const [selectedDay, setSelectedDay] = useState<DayLabel>(WEEK_DAYS[0]);
   const [editingPeriod, setEditingPeriod] = useState<number | null>(null);
 
   const editingEntry = useMemo(() => {
@@ -40,8 +40,13 @@ export default function ScheduleScreen() {
       endTime: payload.endTime.trim(),
     };
 
-    await updateEntry(baseEntry);
-    setEditingPeriod(null);
+    try {
+      await updateEntry(baseEntry);
+    } catch (error) {
+      console.warn("Save failed", error);
+    } finally {
+      setEditingPeriod(null);
+    }
   };
 
   return (

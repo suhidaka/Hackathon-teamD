@@ -29,22 +29,36 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     let alive = true;
 
     const initialize = async () => {
-      const loadedEntries = await loadScheduleEntries();
-      const isGranted = await setupNotifications();
-      setNotificationEnabled(isGranted);
+      try {
+        const loadedEntries = await loadScheduleEntries();
+        const isGranted = await setupNotifications();
+        setNotificationEnabled(isGranted);
 
-      if (!isGranted) {
-        Alert.alert("通知がオフです", "授業通知を使うには通知許可が必要です。");
-      }
+        if (!alive) {
+          return;
+        }
 
-      if (!alive) {
-        return;
-      }
+        setEntries(loadedEntries);
+        setLoading(false);
 
-      setEntries(loadedEntries);
-      setLoading(false);
-      if (isGranted) {
+        if (!isGranted) {
+          Alert.alert(
+            "通知権限がオフです",
+            "授業通知を使うには端末の通知権限をオンにしてください。"
+          );
+          return;
+        }
+
         await rescheduleClassNotifications(loadedEntries);
+      } catch (error) {
+        console.warn("Failed to initialize schedule context", error);
+        if (alive) {
+          setLoading(false);
+          Alert.alert(
+            "初期化エラー",
+            "時間割データまたは通知の初期化に失敗しました。"
+          );
+        }
       }
     };
 
@@ -55,22 +69,33 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const updateEntry = useCallback(async (entry: ScheduleEntry) => {
-    let nextEntries: ScheduleEntry[] = [];
-    setEntries((prev) => {
-      const withoutSlot = prev.filter(
-        (item) => !(item.day === entry.day && item.period === entry.period)
-      );
+  const updateEntry = useCallback(
+    async (entry: ScheduleEntry) => {
+      let nextEntries: ScheduleEntry[] = [];
+      setEntries((prev) => {
+        const withoutSlot = prev.filter(
+          (item) => !(item.day === entry.day && item.period === entry.period)
+        );
+        nextEntries = entry.className ? [...withoutSlot, entry] : withoutSlot;
+        return nextEntries;
+      });
 
-      nextEntries = entry.className ? [...withoutSlot, entry] : withoutSlot;
-      return nextEntries;
-    });
+      try {
+        await saveScheduleEntries(nextEntries);
+      } catch (error) {
+        console.warn("Failed to update schedule entry", error);
+      }
 
-    await saveScheduleEntries(nextEntries);
-    if (notificationEnabled) {
-      await rescheduleClassNotifications(nextEntries);
-    }
-  }, [notificationEnabled]);
+      if (notificationEnabled) {
+        try {
+          await rescheduleClassNotifications(nextEntries);
+        } catch (error) {
+          console.warn("Failed to reschedule notifications", error);
+        }
+      }
+    },
+    [notificationEnabled]
+  );
 
   const value = useMemo(
     () => ({
@@ -91,4 +116,3 @@ export function useSchedule() {
   }
   return context;
 }
-

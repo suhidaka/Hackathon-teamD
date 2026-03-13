@@ -1,8 +1,16 @@
 import { WEEK_DAYS } from "../constants/schedule";
 import type { DayLabel, ScheduleEntry } from "../types/schedule";
 
+export function getEffectiveSchoolWeekday(now: Date) {
+  const weekday = now.getDay();
+  if (weekday === 0 || weekday === 6) {
+    return 1;
+  }
+  return weekday;
+}
+
 export function parseHHMMToMinutes(value: string) {
-  const match = value.match(/^(\d{2}):(\d{2})$/);
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) {
     return null;
   }
@@ -26,7 +34,7 @@ export function getEntryForSlot(
 
 function dayToDateOffset(day: DayLabel, now: Date) {
   const dayIndex = WEEK_DAYS.indexOf(day) + 1; // Monday = 1
-  const today = now.getDay() === 0 ? 7 : now.getDay();
+  const today = getEffectiveSchoolWeekday(now);
   let offset = dayIndex - today;
 
   if (offset < 0) {

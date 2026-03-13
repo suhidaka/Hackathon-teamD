@@ -11,7 +11,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSchedule } from "../../src/context/ScheduleContext";
 import { GIRL_MESSAGES, HOME_MESSAGES } from "../../src/constants/messages";
 import type { DayLabel, ScheduleEntry } from "../../src/types/schedule";
-import { getNextClass, parseHHMMToMinutes } from "../../src/utils/schedule";
+import {
+  getEffectiveSchoolWeekday,
+  getNextClass,
+  parseHHMMToMinutes,
+} from "../../src/utils/schedule";
 import { ConversationBox } from "../../src/components/ConversationBox";
 
 const DAY_LABEL_BY_WEEKDAY: Partial<Record<number, DayLabel>> = {
@@ -39,7 +43,7 @@ function pickRandomMessage(pool: string[], previousMessage?: string) {
 }
 
 function getTodayClasses(entries: ScheduleEntry[], now: Date) {
-  const today = DAY_LABEL_BY_WEEKDAY[now.getDay()];
+  const today = DAY_LABEL_BY_WEEKDAY[getEffectiveSchoolWeekday(now)];
   if (!today) {
     return [];
   }

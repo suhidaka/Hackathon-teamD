@@ -1,5 +1,6 @@
 import type { StyleProp, ViewStyle } from "react-native";
 import { StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export function ConversationBox({
   name,
@@ -17,6 +18,12 @@ export function ConversationBox({
       </View>
       <View style={styles.box}>
         <Text style={styles.message}>{message}</Text>
+        <MaterialIcons
+          name="volume-up"
+          size={22}
+          color="#9a4f76"
+          style={styles.voiceIcon}
+        />
       </View>
     </View>
   );
@@ -43,16 +50,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   box: {
+    position: "relative",
     borderRadius: 8,
     borderWidth: 2,
     borderColor: "#ed9fc6",
     backgroundColor: "#f7c9e2",
     paddingHorizontal: 20,
     paddingVertical: 18,
+    paddingRight: 48,
+    paddingBottom: 24,
   },
   message: {
     color: "#2e2730",
     fontSize: 18,
     lineHeight: 30,
+  },
+  voiceIcon: {
+    position: "absolute",
+    right: 14,
+    bottom: 10,
   },
 });
