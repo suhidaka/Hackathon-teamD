@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,7 +6,14 @@ import {
   ImageBackground,
   Image,
   TouchableOpacity,
+  TextInput,
+  Keyboard,
+  Vibration,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 import { ConversationBox } from "../../src/components/ConversationBox";
 
 // タイマー専用のセリフ集
@@ -27,41 +34,55 @@ const DIALOGUE = {
     "よく頑張りました！", "お疲れさま！", "今日も一歩前進だね。", "ゆっくり休んでね。"
   ],
   default: [
-    // タイマーをスタートする前の待機中のセリフ
     "準備ができたらスタートを押してね。", "タイマーをセットしてね！"
   ]
 };
 
 export default function TimerScreen() {
-  const INITIAL_TIME = 3600; // 60分
-  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
+  const [inputMinutes, setInputMinutes] = useState("60"); 
+  const [initialTime, setInitialTime] = useState(3600);
+  const [timeLeft, setTimeLeft] = useState(initialTime);
   const [isActive, setIsActive] = useState(false);
   const [finishedTime, setFinishedTime] = useState<Date | null>(null);
+  const [isEditing, setIsEditing] = useState(false); 
   
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  const [isSoundOn, setIsSoundOn] = useState(true);
+  const [isVibrationOn, setIsVibrationOn] = useState(true);
+
   const [currentCategory, setCurrentCategory] = useState<string>("");
-  const [message, setMessage] = useState("一緒に集中しよっか！");
+  const [message, setMessage] = useState("準備ができたらスタートを押してね。");
 
   const lastUpdateRef = useRef(Date.now());
   const currentMessageRef = useRef(message);
 
-  // 【変更点1】 useCallbackで包む
-  const determineCategory = useCallback(() => {
+  useEffect(() => {
+    const configureAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+      } catch (e) {
+        console.log("オーディオ設定エラー:", e);
+      }
+    };
+    configureAudio();
+  }, []);
+
+  const determineCategory = () => {
     if (isActive) {
-      const elapsedSeconds = INITIAL_TIME - timeLeft;
-      // 15分（900秒）までは開始時、それ以降は途中
+      const elapsedSeconds = initialTime - timeLeft;
       if (elapsedSeconds <= 15 * 60) return "start";
       return "during";
     }
-    if (finishedTime) {
-      // 終わった後は「終わり」のセリフ
-      return "end";
-    }
-    // スタート前
+    if (finishedTime) return "end";
     return "default";
-  }, [isActive, timeLeft, finishedTime]); // ← 中で使っている変数を指定
+  };
 
-  // 【変更点2】 useCallbackで包む
-  const updateMessage = useCallback((forceUpdate = false) => {
+  const updateMessage = (forceUpdate = false) => {
     const newCategory = determineCategory();
     
     if (newCategory !== currentCategory || forceUpdate) {
@@ -69,7 +90,6 @@ export default function TimerScreen() {
       const messages = DIALOGUE[newCategory as keyof typeof DIALOGUE] || DIALOGUE.default;
       let randomMsg = messages[Math.floor(Math.random() * messages.length)];
       
-      // 同じセリフが連続で出ないようにする
       if (forceUpdate && messages.length > 1 && randomMsg === currentMessageRef.current) {
         const filtered = messages.filter(m => m !== currentMessageRef.current);
         randomMsg = filtered[Math.floor(Math.random() * filtered.length)];
@@ -79,9 +99,34 @@ export default function TimerScreen() {
       currentMessageRef.current = randomMsg;
       lastUpdateRef.current = Date.now();
     }
-  }, [currentCategory, determineCategory]); // ← 中で使っている変数と関数を指定
+  };
 
-  // 【変更点3】 useEffectの配列に updateMessage を追加
+  async function playAlarmAndVibrate() {
+    if (isVibrationOn) {
+      Vibration.vibrate([0, 500, 200, 500]);
+    }
+
+    if (isSoundOn) {
+      try {
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          require('../../assets/images/Clock-Alarm02-1(Loop).mp3') 
+        );
+        setSound(newSound);
+        await newSound.playAsync();
+      } catch (error) {
+        console.log("音の再生エラー:", error);
+      }
+    }
+  }
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
   useEffect(() => {
     updateMessage();
 
@@ -92,9 +137,9 @@ export default function TimerScreen() {
         setIsActive(false);
         setFinishedTime(new Date());
         updateMessage(true); 
+        playAlarmAndVibrate(); 
       }
 
-      // 3分（180秒）経過したらセリフを強制更新
       if (Date.now() - lastUpdateRef.current >= 3 * 60 * 1000) {
         updateMessage(true);
       } else {
@@ -103,17 +148,73 @@ export default function TimerScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, finishedTime, currentCategory, updateMessage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, timeLeft, finishedTime, currentCategory, isSoundOn, isVibrationOn]);
+
+  const finishEditing = () => {
+    setIsEditing(false); 
+    Keyboard.dismiss(); 
+    
+    const mins = parseInt(inputMinutes, 10);
+    if (!mins || mins <= 0) {
+      setInputMinutes("60");
+      setInitialTime(3600);
+      setTimeLeft(3600);
+    } else {
+      setInitialTime(mins * 60);
+      setTimeLeft(mins * 60);
+    }
+  };
 
   const toggleTimer = () => {
-    if (!isActive && timeLeft > 0) {
+    Keyboard.dismiss();
+    setIsEditing(false); 
+
+    let currentLeft = timeLeft;
+    const mins = parseInt(inputMinutes, 10);
+    
+    if (!isActive && (!mins || mins <= 0)) {
+      setInputMinutes("1");
+      setInitialTime(60);
+      setTimeLeft(60);
+      currentLeft = 60;
+    } else if (!isActive && timeLeft === initialTime) {
+      setInitialTime(mins * 60);
+      setTimeLeft(mins * 60);
+      currentLeft = mins * 60;
+    }
+
+    if (!isActive && currentLeft > 0) {
       setFinishedTime(null);
       updateMessage(true);
-    } else if (isActive) {
-      // ストップを押した時に待機状態に戻したい場合はコメントアウトを外す
-      // setFinishedTime(null); 
     }
     setIsActive(!isActive);
+  };
+
+  const resetTimer = () => {
+    setIsActive(false);
+    setIsEditing(false); 
+    Keyboard.dismiss();
+    
+    if (sound) {
+      sound.stopAsync();
+    }
+    
+    const mins = parseInt(inputMinutes, 10) || 60;
+    setInitialTime(mins * 60);
+    setTimeLeft(mins * 60);
+    setFinishedTime(null);
+    
+    setCurrentCategory("default");
+    const messages = DIALOGUE.default;
+    let randomMsg = messages[Math.floor(Math.random() * messages.length)];
+    if (messages.length > 1 && randomMsg === currentMessageRef.current) {
+        const filtered = messages.filter(m => m !== currentMessageRef.current);
+        randomMsg = filtered[Math.floor(Math.random() * filtered.length)];
+    }
+    setMessage(randomMsg);
+    currentMessageRef.current = randomMsg;
+    lastUpdateRef.current = Date.now();
   };
 
   const formatTime = (seconds: number) => {
@@ -123,64 +224,236 @@ export default function TimerScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ImageBackground
-        source={require("../../assets/images/rouka.png")}
-        style={styles.visualArea}
-        imageStyle={styles.background}
-      >
-        <View style={styles.overlay} />
-        <Image
-          source={require("../../assets/images/character-main.png")}
-          style={styles.characterImage}
-          resizeMode="contain"
-        />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <TouchableOpacity style={styles.container} activeOpacity={1} onPress={() => Keyboard.dismiss()}>
         
-        <TouchableOpacity 
-          activeOpacity={0.8} 
-          onPress={() => updateMessage(true)} // タップでセリフ切り替え
-          style={styles.conversationTouchArea}
+        {/* ▼ 上半分のキャラクター・背景エリア ▼ */}
+        <ImageBackground
+          source={require("../../assets/images/rouka.png")}
+          style={styles.visualArea}
+          imageStyle={styles.background}
         >
-          <ConversationBox name="美月" message={message} />
-        </TouchableOpacity>
-      </ImageBackground>
+          <View style={styles.overlay} />
+          <Image
+            source={require("../../assets/images/character-main.png")}
+            style={styles.characterImage}
+            resizeMode="contain"
+          />
+          
+          <TouchableOpacity 
+            activeOpacity={0.8} 
+            onPress={() => updateMessage(true)}
+            style={styles.conversationTouchArea}
+          >
+            <ConversationBox name="美月" message={message} />
+          </TouchableOpacity>
+        </ImageBackground>
 
-      <View style={styles.timerArea}>
-        <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>
-        <TouchableOpacity
-          style={[styles.button, isActive ? styles.buttonActive : styles.buttonInactive]}
-          onPress={toggleTimer}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>{isActive ? "ストップ" : "スタート"}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        {/* ▼ 下半分のタイマー・ボタンエリア ▼ */}
+        <View style={styles.timerArea}>
+          
+          {/* ◀ 追加：音とバイブのアイコンをタイマーエリアの右上に配置 */}
+          <View style={styles.feedbackSettings}>
+            <TouchableOpacity onPress={() => setIsSoundOn(!isSoundOn)} style={styles.feedbackBtn}>
+              <Ionicons name={isSoundOn ? "volume-high" : "volume-mute"} size={26} color={isSoundOn ? "#eb85af" : "#b0aeb3"} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsVibrationOn(!isVibrationOn)} style={styles.feedbackBtn}>
+              <Ionicons name={isVibrationOn ? "phone-portrait" : "phone-portrait-outline"} size={24} color={isVibrationOn ? "#eb85af" : "#b0aeb3"} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.timeRow}>
+            {!isActive && timeLeft === initialTime ? (
+              isEditing ? (
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.timeInput}
+                    value={inputMinutes}
+                    onChangeText={(text) => {
+                      const numericValue = text.replace(/[^0-9]/g, "");
+                      setInputMinutes(numericValue);
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={3}
+                    autoFocus={true} 
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.timeUnit}>分</Text>
+                  
+                  <TouchableOpacity style={styles.decideButton} onPress={finishEditing}>
+                    <Text style={styles.decideButtonText}>決定</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.inputWrapper} 
+                  onPress={() => setIsEditing(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.timeInputDisplay}>{inputMinutes}</Text>
+                  <Text style={styles.timeUnit}>分</Text>
+                  
+                  <View style={styles.editHintBadge}>
+                    <Ionicons name="pencil" size={16} color="#eb85af" />
+                  </View>
+                </TouchableOpacity>
+              )
+            ) : (
+              <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>
+            )}
+          </View>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.resetButton} onPress={resetTimer} activeOpacity={0.6}>
+              <Text style={styles.resetButtonText}>リセット</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.mainButton, isActive ? styles.buttonActive : styles.buttonInactive]} onPress={toggleTimer} activeOpacity={0.8}>
+              <Text style={styles.buttonText}>{isActive ? "ストップ" : "スタート"}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f7eef2" },
   visualArea: { flex: 1, overflow: "hidden", justifyContent: "center", alignItems: "center", position: "relative" },
-  background: { resizeMode: "cover",},
+  background: { resizeMode: "cover" },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(13, 44, 83, 0.16)" },
-  characterImage: { width: "86%", height: 560, marginTop: 36 },
+  characterImage: { width: "86%", height: 560, marginTop: 80 },
   conversationTouchArea: { position: "absolute", left: 10, right: 10, bottom: 20 },
+  
   timerArea: {
-    height: 280, 
     backgroundColor: "#fff6f9", 
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32,
     alignItems: "center", 
-    paddingTop: 20, 
-    paddingBottom: 150, 
+    paddingTop: 24, 
+    paddingBottom: 110, 
     borderWidth: 2, 
     borderColor: "#f6c7da", 
     borderBottomWidth: 0,
+    position: "relative", // ◀ 追加：アイコンを右上に固定するための基準
   },
-  timeText: { fontSize: 60, fontWeight: "700", color: "#5a5961", marginBottom: 10, letterSpacing: 2 },
-  button: { width: "60%", paddingVertical: 16, borderRadius: 30, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+
+  // ◀ 変更：背景色と影を消して、timerAreaの右上にスッキリ配置
+  feedbackSettings: {
+    position: "absolute",
+    top: 10,    // タイマーエリアの上からの距離
+    left: 15,  // タイマーエリアの右からの距離
+    flexDirection: "row",
+    gap: 5,
+    zIndex: 10, // タップできるように手前に持ってくる
+  },
+  feedbackBtn: { padding: 4 },
+
+  timeRow: {
+    height: 90, 
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    position: "relative",
+  },
+  timeInput: {
+    fontSize: 64,
+    fontWeight: "700",
+    color: "#5a5961",
+    borderBottomWidth: 3,
+    borderColor: "#f6c7da",
+    minWidth: 100,
+    textAlign: "center",
+    paddingBottom: 0,
+  },
+  timeInputDisplay: {
+    fontSize: 64,
+    fontWeight: "700",
+    color: "#5a5961",
+    minWidth: 100,
+    textAlign: "center",
+    borderBottomWidth: 3,
+    borderColor: "#f6c7da", 
+  },
+  timeUnit: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#5a5961",
+    marginLeft: 8,
+  },
+  decideButton: {
+    marginLeft: 16,
+    backgroundColor: "#eb85af",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    transform: [{ translateY: -12 }],
+  },
+  decideButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  editHintBadge: {
+    position: "absolute",
+    right: -24,
+    top: 10,
+    backgroundColor: "#fff6f9",
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#f6c7da",
+  },
+  
+  timeText: { 
+    fontSize: 64, 
+    fontWeight: "700", 
+    color: "#5a5961", 
+    width: 210, 
+    textAlign: "center",
+    letterSpacing: 2 
+  },
+  buttonRow: {
+    flexDirection: "row",
+    width: "70%",
+    justifyContent: "space-between",
+  },
+  resetButton: {
+    width: "45%",
+    paddingVertical: 14,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: "#f6c7da",
+  },
+  resetButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#e09ab7",
+  },
+  mainButton: { 
+    width: "45%",
+    paddingVertical: 14, 
+    borderRadius: 30, 
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000", 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    elevation: 3 
+  },
   buttonInactive: { backgroundColor: "#f6c7da" },
   buttonActive: { backgroundColor: "#eb85af" },
-  buttonText: { fontSize: 22, fontWeight: "bold", color: "#ffffff" },
+  buttonText: { fontSize: 18, fontWeight: "bold", color: "#ffffff" },
 });
