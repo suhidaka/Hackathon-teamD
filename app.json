@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "繧ｭ繝｣繝ｳ繝代せ蠖ｼ螂ｳ",
     "slug": "campus-kanojo",
@@ -38,7 +38,8 @@
             "backgroundColor": "#f8eef2"
           }
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -46,4 +47,3 @@
     }
   }
 }
-
