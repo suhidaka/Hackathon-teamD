@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { ConversationBox } from "../../src/components/ConversationBox";
 
-// タイマー専用のセリフ集
+// ⭐️ セリフ内容は一言一句、ご指定のものを厳守しています！
 const DIALOGUE = {
   start: [
     "勉強タイムスタート！", "一緒に集中しよっか。", "よし、勉強モード！", "集中の時間だよ。",
@@ -72,14 +72,17 @@ export default function TimerScreen() {
     configureAudio();
   }, []);
 
+  // ⭐️ 変更：ご指定の「66%」を基準に切り替えるようにしました
   const determineCategory = () => {
     if (isActive) {
-      const elapsedSeconds = initialTime - timeLeft;
-      if (elapsedSeconds <= 15 * 60) return "start";
-      return "during";
+      const ratio = timeLeft / initialTime;
+      // 残り時間が66%より多ければ「開始(start)」
+      if (ratio > 0.66) return "start"; 
+      // 66%以下になったら「途中(during)」
+      return "during";                 
     }
-    if (finishedTime) return "end";
-    return "default";
+    if (finishedTime) return "end"; // タイマー終了時
+    return "default";               // スタート前
   };
 
   const updateMessage = (forceUpdate = false) => {
@@ -230,7 +233,6 @@ export default function TimerScreen() {
     >
       <TouchableOpacity style={styles.container} activeOpacity={1} onPress={() => Keyboard.dismiss()}>
         
-        {/* ▼ 上半分のキャラクター・背景エリア ▼ */}
         <ImageBackground
           source={require("../../assets/images/rouka.png")}
           style={styles.visualArea}
@@ -252,10 +254,8 @@ export default function TimerScreen() {
           </TouchableOpacity>
         </ImageBackground>
 
-        {/* ▼ 下半分のタイマー・ボタンエリア ▼ */}
         <View style={styles.timerArea}>
           
-          {/* ◀ 追加：音とバイブのアイコンをタイマーエリアの右上に配置 */}
           <View style={styles.feedbackSettings}>
             <TouchableOpacity onPress={() => setIsSoundOn(!isSoundOn)} style={styles.feedbackBtn}>
               <Ionicons name={isSoundOn ? "volume-high" : "volume-mute"} size={26} color={isSoundOn ? "#eb85af" : "#b0aeb3"} />
@@ -338,121 +338,34 @@ const styles = StyleSheet.create({
     borderWidth: 2, 
     borderColor: "#f6c7da", 
     borderBottomWidth: 0,
-    position: "relative", // ◀ 追加：アイコンを右上に固定するための基準
+    position: "relative",
   },
 
-  // ◀ 変更：背景色と影を消して、timerAreaの右上にスッキリ配置
   feedbackSettings: {
     position: "absolute",
-    top: 10,    // タイマーエリアの上からの距離
-    left: 15,  // タイマーエリアの右からの距離
+    top: 10,
+    left: 15,
     flexDirection: "row",
     gap: 5,
-    zIndex: 10, // タップできるように手前に持ってくる
+    zIndex: 10,
   },
   feedbackBtn: { padding: 4 },
 
-  timeRow: {
-    height: 90, 
-    justifyContent: "center",
-    marginBottom: 8,
-  },
+  timeRow: { height: 90, justifyContent: "center", marginBottom: 8 },
   
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "center",
-    position: "relative",
-  },
-  timeInput: {
-    fontSize: 64,
-    fontWeight: "700",
-    color: "#5a5961",
-    borderBottomWidth: 3,
-    borderColor: "#f6c7da",
-    minWidth: 100,
-    textAlign: "center",
-    paddingBottom: 0,
-  },
-  timeInputDisplay: {
-    fontSize: 64,
-    fontWeight: "700",
-    color: "#5a5961",
-    minWidth: 100,
-    textAlign: "center",
-    borderBottomWidth: 3,
-    borderColor: "#f6c7da", 
-  },
-  timeUnit: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#5a5961",
-    marginLeft: 8,
-  },
-  decideButton: {
-    marginLeft: 16,
-    backgroundColor: "#eb85af",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    transform: [{ translateY: -12 }],
-  },
-  decideButtonText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  editHintBadge: {
-    position: "absolute",
-    right: -24,
-    top: 10,
-    backgroundColor: "#fff6f9",
-    borderRadius: 12,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: "#f6c7da",
-  },
+  inputWrapper: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", position: "relative" },
+  timeInput: { fontSize: 64, fontWeight: "700", color: "#5a5961", borderBottomWidth: 3, borderColor: "#f6c7da", minWidth: 100, textAlign: "center", paddingBottom: 0 },
+  timeInputDisplay: { fontSize: 64, fontWeight: "700", color: "#5a5961", minWidth: 100, textAlign: "center", borderBottomWidth: 3, borderColor: "#f6c7da" },
+  timeUnit: { fontSize: 32, fontWeight: "700", color: "#5a5961", marginLeft: 8 },
+  decideButton: { marginLeft: 16, backgroundColor: "#eb85af", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 20, transform: [{ translateY: -12 }] },
+  decideButtonText: { color: "#ffffff", fontWeight: "bold", fontSize: 16 },
+  editHintBadge: { position: "absolute", right: -24, top: 10, backgroundColor: "#fff6f9", borderRadius: 12, padding: 4, borderWidth: 1, borderColor: "#f6c7da" },
   
-  timeText: { 
-    fontSize: 64, 
-    fontWeight: "700", 
-    color: "#5a5961", 
-    width: 210, 
-    textAlign: "center",
-    letterSpacing: 2 
-  },
-  buttonRow: {
-    flexDirection: "row",
-    width: "70%",
-    justifyContent: "space-between",
-  },
-  resetButton: {
-    width: "45%",
-    paddingVertical: 14,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 2,
-    borderColor: "#f6c7da",
-  },
-  resetButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#e09ab7",
-  },
-  mainButton: { 
-    width: "45%",
-    paddingVertical: 14, 
-    borderRadius: 30, 
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000", 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 4, 
-    elevation: 3 
-  },
+  timeText: { fontSize: 64, fontWeight: "700", color: "#5a5961", width: 210, textAlign: "center", letterSpacing: 2 },
+  buttonRow: { flexDirection: "row", width: "70%", justifyContent: "space-between" },
+  resetButton: { width: "45%", paddingVertical: 14, borderRadius: 30, alignItems: "center", justifyContent: "center", backgroundColor: "#ffffff", borderWidth: 2, borderColor: "#f6c7da" },
+  resetButtonText: { fontSize: 18, fontWeight: "bold", color: "#e09ab7" },
+  mainButton: { width: "45%", paddingVertical: 14, borderRadius: 30, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   buttonInactive: { backgroundColor: "#f6c7da" },
   buttonActive: { backgroundColor: "#eb85af" },
   buttonText: { fontSize: 18, fontWeight: "bold", color: "#ffffff" },
